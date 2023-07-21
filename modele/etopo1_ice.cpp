@@ -12,6 +12,7 @@ using namespace icebin::modele;
 using namespace netCDF;
 
 const int16_t GREENLAND_VAL = 2;    // Used to mark Greenland in ZNGDC1-SeparateGreenland/FCONT1
+// Antarctica is defined as land in the bottom 1/6 of the domain
 const int16_t MIN_LANDICE_THK = 50;    // Anything under this we call seasonal snow cover
 
 void store_h(NcIO &ncout, blitz::Array<int16_t,2> val1m, std::string const &vname)
@@ -45,6 +46,7 @@ void store_h(NcIO &ncout, blitz::Array<int16_t,2> val1m, std::string const &vnam
 void etopo1_ice(
     FileLocator const &files,
     bool include_greenland,
+    bool include_antarctica,
     std::string const &ofname_root)
 {
     // This is what we construct
@@ -104,18 +106,26 @@ void etopo1_ice(
                 ncio_blitz(fin, zsolid1m, "ZSOLID", "short", {}))));
 
 // Use an ice-free Antarctica
-#if 1
+            if (include_antarctica) {
             // Use ETOPO1 for Southern Hemisphere Ice
-            for (int j1m=0; j1m < JM1m/2; ++j1m) {
+            for (int j1m=0; j1m < JM1m/6; ++j1m) {
             for (int i1m=0; i1m < IM1m; ++i1m) {
 //if (j1m == 0) printf("south pole: %d %d %d\n", focean1m(j1m,i1m), zicetop1m(j1m,i1m), zsolid1m(j1m,i1m));
-                if ( (focean1m(j1m,i1m) == 0)
+                if ( (focean1m(j1m,i1m) == 0) 
                     && (zicetop1m(j1m,i1m) - zsolid1m(j1m,i1m) >= MIN_LANDICE_THK))
                 {
                     fgice1m(j1m, i1m) = 1;
                 }
             }}
-#endif
+            } else {
+            for (int j1m=0; j1m < JM1m/6; ++j1m) {
+            for (int i1m=0; i1m < IM1m; ++i1m) {
+                    if (focean1m(j1m,i1m) == 0) {
+                        zicetop1m(j1m,i1m) = -300;
+                        zsolid1m(j1m,i1m) = -300;
+                    }
+            }}
+ 	    }
 
             // Deal with Greenland
             if (include_greenland) {
@@ -141,19 +151,23 @@ void etopo1_ice(
 
             // Store zicetop1m, zsolid1m
             {NcIO ncout(ofname_root + "1m.nc", 'w');
-                ncout.nc->putAtt("source", include_greenland ? "etopo1_ice.cpp" : "etopo1_ice.cpp, Greenland removed");
+    	        std::string mydesc;
+	        mydesc = (include_greenland && include_antarctica ? " ": ", Greenland & Antarctica removed"); 
+	        mydesc = (include_greenland && !include_antarctica ? ", Antarctica removed ": ", Greenland removed"); 
+
+                ncout.nc->putAtt("source", "etopo1_ice.cpp" + mydesc);
                 auto dims(get_or_add_dims(ncout, {"jm1m", "im1m"}, {JM1m, IM1m}));
 
                 NcVar ncvar;
                 ncvar = ncio_blitz(ncout, zicetop1m, "ZICETOP1m", "short", dims);
                 get_or_put_all_atts(ncvar, 'w', etopo1_atts.at("ZICTOP"));
                 ncvar.putAtt("units", "m");
-                ncvar.putAtt("source", include_greenland ? "ETOPO1" : "ETOPO1, Greenland removed");
+                ncvar.putAtt("source", "ETOPO1" + mydesc);
 
                 ncvar = ncio_blitz(ncout, zsolid1m, "ZSOLG1m", "short", dims);
                 get_or_put_all_atts(ncvar, 'w', etopo1_atts.at("ZSOLID"));
                 ncvar.putAtt("units", "m");
-                ncvar.putAtt("source", include_greenland ? "ETOPO1" : "ETOPO1, Greenland removed");
+                ncvar.putAtt("source",  "ETOPO1" + mydesc);
             }
             store_h(nch, zicetop1m, "ZICETOPh");
             store_h(nch, zsolid1m, "ZSOLGh");
@@ -213,13 +227,28 @@ printf("j1 i1=%d %d (area = %g %g)\n", j1, i1, snow1, remain1m);
     for (int i1m=0; i1m < IM1m; ++i1m) {
         if (focean1m(j1m,i1m) == GREENLAND_VAL) {
             if (include_greenland) {
+               focean1m(j1m,i1m) = 0;
+            } else {
+                focean1m(j1m,i1m) = 1;
+            }
+
+            // Check: can't have focean1m and fgice1m at the same time
+            if (focean1m(j1m,i1m) == 1) fgice1m(j1m,i1m) = 0;
+        }
+    }}
+   
+    // Remove Antarctica
+    for (int j1m=0; j1m < JM1m/6; ++j1m) {
+    for (int i1m=0; i1m < IM1m; ++i1m) {
+    if (focean1m(j1m,i1m) == 0) {
+            if (include_antarctica) {
                 focean1m(j1m,i1m) = 0;
             } else {
                 focean1m(j1m,i1m) = 1;
             }
 
             // Check: can't have focean1m and fgice1m at the same time
-            if (focean1m(i1m,j1m) == 1) fgice1m(i1m,j1m) = 0;
+            if (focean1m(j1m,i1m) == 1) fgice1m(j1m,i1m) = 0;
         }}
     }
 
@@ -227,18 +256,21 @@ printf("j1 i1=%d %d (area = %g %g)\n", j1, i1, snow1, remain1m);
 
     // Store zicetop1m, zsolid1m
     {NcIO ncout(ofname_root + "1m.nc", 'a');
+	std::string mydesc;
+	mydesc = (include_greenland && include_antarctica ? " ": ", Greenland & Antarctica removed"); 
+	mydesc = (include_greenland && !include_antarctica ? ", Antarctica removed ": ", Greenland removed"); 
         auto dims(get_or_add_dims(ncout, {"jm1m", "im1m"}, {JM1m, IM1m}));
 
         NcVar ncvar;
         ncvar = ncio_blitz(ncout, focean1m, "FOCEAN1m", "short", dims);
         get_or_put_all_atts(ncvar, 'w', etopo1_atts.at("FOCEAN"));
         ncvar.putAtt("units", "1");
-        ncvar.putAtt("source", include_greenland ? "ETOPO1" : "ETOPO1, Greenland removed");
+        ncvar.putAtt("source", "ETOPO1" + mydesc);
 
         ncvar = ncio_blitz(ncout, fgice1m, "FGICE1m", "short", dims);
         ncvar.putAtt("description", "Fractional ice cover (0 or 1)");
         ncvar.putAtt("units", "1");
-        ncvar.putAtt("source", include_greenland ? "etopo1_ice.cpp output" : "etopo1_ice.cpp output, Greenland removed");
+        ncvar.putAtt("source", "etopo1_ice.cpp output"+mydesc);
 
     }
     store_h(nch, focean1m, "FOCEANh");
@@ -251,6 +283,7 @@ printf("j1 i1=%d %d (area = %g %g)\n", j1, i1, snow1, remain1m);
 struct ParseArgs {
     std::string ofname_root;
     bool greenland;
+    bool antarctica;
 
     ParseArgs(int argc, char **argv);
 };
@@ -272,6 +305,7 @@ ParseArgs::ParseArgs(int argc, char **argv)
 
         TCLAP::UnlabeledValueArg<std::string> ofname_root_a(
             "ofname-root", "Root name of output file (without resolution marker or .nc)", true, "etopo1_ice", "output filename", cmd);
+        TCLAP::SwitchArg antarctica_a("a", "antarctica", "Include Antarctica?", cmd, false);
         TCLAP::SwitchArg greenland_a("g", "greenland", "Include Greenland?", cmd, false);
 
         // Parse the argv array.
@@ -280,6 +314,7 @@ ParseArgs::ParseArgs(int argc, char **argv)
         // Get the value parsed by each arg.
         ofname_root = ofname_root_a.getValue();
         greenland = greenland_a.getValue();
+	antarctica = antarctica_a.getValue();
 
     } catch (TCLAP::ArgException &e) { // catch any exceptions
         std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
@@ -294,5 +329,5 @@ int main(int argc, char** argv)
     ParseArgs args(argc, argv);
 
     // Read the input files
-    etopo1_ice(EnvSearchPath("MODELE_FILE_PATH"), args.greenland, args.ofname_root);
+    etopo1_ice(EnvSearchPath("MODELE_FILE_PATH"), args.greenland, args.antarctica, args.ofname_root);
 }
