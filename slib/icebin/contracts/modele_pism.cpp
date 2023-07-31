@@ -78,8 +78,11 @@ printf("BEGIN modele_pism.cpp::_reconstruct_icevalsI(),dt=%f\n",dt);
     // Pretend both layers have density RHOI; because that is what PISM will see
     // [3.2217] [kg m-3] [kg m-3] = [W m-1 K-1]  (Stieglitz eq 8b)
     double const ksn = STIEGLITZ_8B * (RHOI*RHOI);    // [W m-1 K-1]
-    // Pretend that both layers are 40m; the standard depth of a PISM layer
-    double const dz = 40;    // [m]  TODO: Find where this is in PISM
+    // Pretend that both layers are 2.47m; the depth of a snow model layer with 5 layers
+    double const dz = 2.47;    // [m]
+    // TODO:
+    // 1 - get the information directly from the snow model
+    // 2 - Maybe Use a better scheme from Stiegliz
     // Constant for Fourier's law:
     //     downward flux (layer 0->1) [W m-2] = kappa (H0 - H1)
     //     where H=specific enth
@@ -95,8 +98,7 @@ printf("BEGIN modele_pism.cpp::_reconstruct_icevalsI(),dt=%f\n",dt);
 
         double ice_top_bc_senth;
         if (gcm_coupler->use_smb) {
-            double const Q = deltah(i) / dt;          // [W m-2]
-
+            double const Q = deltah(i);          // [W m-2]
             // Specific enthalpy for the boundary condition
             // Q/kappa: [W m-2 kg-1 s m^2] = [J kg-1]
             double const H0 = (Q/kappa) + H1;        // [J kg-1]
@@ -185,7 +187,7 @@ void setup_modele_pism(GCMCoupler const *_gcm_coupler, IceCoupler *_ice_coupler)
         "Mass of ice being transferred Stieglitz --> Icebin");
     ice_input.add("enthxfer", 0., "W m-2", "", 0,
         "Enthalpy of ice being transferred Stieglitz --> Icebin");
-    ice_input.add("deltah", 0., "W m-2", "", contracts::PRIVATE,
+    ice_input.add("deltah", 0., "W m-2", "", 0,
         "Change of enthalpy to apply to top layer in PISM");
 
     // These variables are the actual boundary condition provided to PISM.

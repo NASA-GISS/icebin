@@ -342,7 +342,8 @@ printf("[%d] pism_size = %d\n", pism_rank(), pism_size());
     // Ignore surface_temp, it is not useful...
     ix = contract[INPUT].index.at("enthxfer");
         pism_ivars[ix] = &pism_surface_model->enthxfer;
-
+    ix = contract[INPUT].index.at("deltah");
+        pism_ivars[ix] = &pism_surface_model->deltah;
     ix = contract[INPUT].index.at("ice_top_bc_temp");
         pism_ivars[ix] = &pism_surface_model->ice_top_bc_temp;
     ix = contract[INPUT].index.at("ice_top_bc_wc");
