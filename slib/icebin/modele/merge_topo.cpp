@@ -109,12 +109,20 @@ double const eq_rad,    // Radius of the earth
 std::vector<std::string> &errors)
 {
 printf("BEGIN merge_topoO\n");
-#if 0
+//##if 0
 // Log inputs for debugging
 {
     auto &indexing(gcmO->ice_regridders()[0]->agridI.indexing);
+    printf("indexing extent %i %i \n",indexing[1].extent, indexing[0].extent);
     blitz::TinyVector<int,2> shapeI(indexing[1].extent, indexing[0].extent);
+    printf("shapeI = %i\n",shapeI);
+    printf("emI_lands[0] %i\n",emI_lands[0]);
+    printf("emI_ices[0] %i\n",emI_ices[0]);
+    printf("emI_ices r c %i %i\n",emI_ices.size());
+ 
+
     auto emI_land2(unconst(reshape<double,1,2>(emI_lands[0], shapeI)));
+    printf("X\n");
     auto emI_ice2(unconst(reshape<double,1,2>(emI_ices[0], shapeI)));
 
 
@@ -138,7 +146,7 @@ printf("BEGIN merge_topoO\n");
     ncio_blitz(ncio, emI_ice2, "emI_ice", "double", dimsI);
     ncio.flush();
 }
-#endif
+//##endif
 
     mergemaskOm2 = 0;
 

@@ -55,7 +55,7 @@ static void callZ(
     //         ZGRND  = altitude break between ground and land ice (m)
     //         ZSGHI  = highes value of ZICETOP1m in model cell (m)
     //
-
+    printf("Begin Z\n");
     HntrGrid grid_g1mx1m(g1mx1m);
 
     for (int J=1; J <= JM; ++J) {
@@ -143,9 +143,16 @@ static void callZ(
                 ZATMOF(I,J) = SAZSG / SAREA;
                 std::sort(cells2.begin(), cells2.end());
 
-                if (SAREA == 0) (*icebin_error)(-1,
+                if (SAREA == 0) {
+		    printf("error at %i %i \n",I,J);       
+		    printf("focean=%d\n",FOCEAN(I,J));
+		    printf("ZICETOP1m=%d\n",ZICETOP(I,J));
+
+
+			(*icebin_error)(-1,
                     "Continental cell (%d,%d) has no continental area on 2-minute grid. (%d-%d, %d-%d)",
                     I,J,I11,I1M,J11,J1M);
+	        }
 
                 // Determine ZSOLDG
                 ZSOLDG(I,J) = SAZSG / SAREA;
@@ -218,6 +225,7 @@ static void callZ(
              ZSGHI (Range(2,IM),J) = ZSGHI (1,J);
         }
     }
+    printf("End z\n");
 }
 
 struct ElevPoints {
@@ -413,9 +421,14 @@ static ibmisc::ArrayBundle<double,2> _make_topoO(
     // hole should be filled with land ice.  It is unclear how it got
     // there in the first place.  The ETOPO1 ocean fraction is bases
     // on ZICETOP being below 0 and adjacent to other ocean cells."
+    printf("Now set a a bunch of cells to land\n");
+    // LR - we don't want to do this if Antarctica is removed
+    // how to decide this?
+#if 0
     SET_TO( 84, 18) = TO_LAND;
     SET_TO( 85, 18) = TO_LAND;
     SET_TO( 86, 18) = TO_LAND;
+#endif
 
     SET_TO(236, 82) = TO_LAND;
     SET_TO(242, 82) = TO_LAND;
@@ -495,15 +508,15 @@ static ibmisc::ArrayBundle<double,2> _make_topoO(
 
 
     // South pole should be all ice; avoid singularities in regridding algo.
-    for (int i=1; i<=IM; ++i) {
-        FOCEAN(i,1) = 0;
-        FGICE(i,1) = 1;
-        FGICEF(i,1) = 1;
-    }
+    //for (int i=1; i<=IM; ++i) {
+    //    FOCEAN(i,1) = 0;
+    //    FGICE(i,1) = 1;
+    //    FGICEF(i,1) = 1;
+   //! LR temp }
 
-
+    printf("W FOCEANF(1,1)=%d\n",FOCEANF(1,1));
     // FOCEAN (0 or 1) is rounded from FOCEANF
-    for (int j=2; j<=JM; ++j) {
+    for (int j=1; j<=JM; ++j) { //LR changed from 2 to 1
     for (int i=1; i<=IM; ++i) {
         auto const foceanf(FOCEANF(i,j));
         bool to_ocean;
@@ -529,6 +542,7 @@ static ibmisc::ArrayBundle<double,2> _make_topoO(
             FGICE(i,j) = FGICEF(i,j) * fact;
         }
     }}
+    printf("X FOCEAN(1,1)=%d\n",FOCEAN(1,1));
 
 #if 0
     // Average non-fractional and fractional ocean covers over latitude

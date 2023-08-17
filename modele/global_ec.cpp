@@ -248,11 +248,18 @@ ParseArgs::ParseArgs(int argc, char **argv)
         topoo_fname = topoo_fname_a.getValue();
 
         // Parse elevation classes...
+	printf("Now get elevation classes\n");
+	printf("nc_fname = %s\n",nc_fname.c_str());
+        printf("topoo_fname = %s\n",topoo_fname.c_str());
         auto _ec(split<double>(ec_a.getValue(), ","));
         if (_ec.size() < 2 || _ec.size() > 3) (*icebin_error)(-1,
             "--ec '%%s' must have just two or three values", ec_a.getValue().c_str());
         ec_range[0] = _ec[0];
         ec_range[1] = _ec[1];
+	printf("ec_range 0 = %i \n",ec_range[0]);
+	printf("ec_range 1 = %i \n",ec_range[1]);
+
+
         ec_skip = (_ec.size() == 3 ? _ec[2] : 200);
 
         ofname = ofname_a.getValue();
@@ -734,6 +741,7 @@ void write_chunk_makefile(
 
 int main(int argc, char **argv)
 {
+    printf("MAIN\n");
     everytrace_init();
 
     // Save args as C++ vector
@@ -797,9 +805,11 @@ int main(int argc, char **argv)
 
     // Read in ice extent and elevation
     {auto fname(files.locate(args.nc_fname));
+        printf("!!!fname=%s\n",fname.c_str());
         NcIO ncio(fname, 'r');
         ncio_blitz(ncio, fgiceI, args.fgiceI_vname, "short", {});
         ncio_blitz(ncio, elevI, args.elevI_vname, "short", {});
+	printf("vname = %s\n",args.elevI_vname.c_str());
     }
 
     // Get max. and min. elevation for ice
@@ -811,9 +821,11 @@ int main(int argc, char **argv)
             elevI_range[1] = std::max(elevI_range[1], elevI(j,i));
         }
     }}
-    // C++11 standard rounds toward 0
+    printf("max min elevI %g %g \n",(double)elevI_range[0],(double)elevI_range[1]);
+   // C++11 standard rounds toward 0
     args.ec_range[0] = args.ec_skip*std::floor((double)elevI_range[0] / args.ec_skip);
     args.ec_range[1] = args.ec_skip*std::ceil((double)elevI_range[1] / args.ec_skip);
+    printf("ec range %g %g \n",args.ec_range[0],args.ec_range[1]);
 
     if (args.run_chunk) {
         // ============== Run just one chunk
