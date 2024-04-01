@@ -200,7 +200,7 @@ void etopo1_ice(
 
         // Snow-covered area for this cell in g1x1
         double remain1m = snow1 * g1x1_dxyp(j1);
-printf("j1 i1=%d %d (area = %g %g)\n", j1, i1, snow1, remain1m);
+//printf("j1 i1=%d %d (area = %g %g)\n", j1, i1, snow1, remain1m);
         for (auto ii=cells.begin(); ii != cells.end(); ++ii) {
             int16_t const elev1m = -std::get<0>(*ii);
             int const j1m(std::get<1>(*ii));

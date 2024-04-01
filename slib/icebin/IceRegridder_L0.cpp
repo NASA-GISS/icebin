@@ -102,12 +102,13 @@ void IceRegridder_L0::GvEp(
     char gridG,    // Interpolation grid to use for G: 'I' (ice) or 'G' (exchange)
     blitz::Array<double,1> const *_elevmaskI) const
 {
-printf("BEGIN IceRegridder_L0::GvEp()\n");
+//printf("BEGIN IceRegridder_L0::GvEp()\n");
     blitz::Array<double,1> const &elevmaskI(*_elevmaskI);
 
     if (gcm->hcdefs().size() == 0) (*icebin_error)(-1,
         "IceRegridder_L0::GvEp(): hcdefs is zero-length!");
 
+    printf("aexgrid.dense_extent() =%i\n",aexgrid.dense_extent());
     // ---------------------------------------
     // Handle Z_INTERP or ELEV_CLASS_INTERP
 
@@ -151,7 +152,7 @@ printf("BEGIN IceRegridder_L0::GvEp()\n");
             }
         }
     }
-printf("END IceRegridder_L0::GvEp()\n");
+//printf("END IceRegridder_L0::GvEp()\n");
 }
 // --------------------------------------------------------
 void IceRegridder_L0::GvI(
@@ -194,7 +195,7 @@ void IceRegridder_L0::GvAp(
     char gridG,    // Interpolation grid to use for G: 'I' (ice) or 'X' (exchange)
     blitz::Array<double,1> const *_elevmaskI) const
 {
-printf("BEGIN IceRegridder_L0::GvAp()\n");
+//printf("BEGIN IceRegridder_L0::GvAp()\n");
     blitz::Array<double,1> const &elevmaskI(*_elevmaskI);
     for (int id=0; id<aexgrid.dense_extent(); ++id) {
         long const iG = (gridG == 'I' ?
@@ -210,7 +211,7 @@ printf("BEGIN IceRegridder_L0::GvAp()\n");
                 ret.add({iG, iA}, aexgrid.native_area(id));
             }
     }
-printf("END IceRegridder_L0::GvAp()\n");
+//printf("END IceRegridder_L0::GvAp()\n");
 }
 // --------------------------------------------------------
 void IceRegridder_L0::ncio(NcIO &ncio, std::string const &vname)

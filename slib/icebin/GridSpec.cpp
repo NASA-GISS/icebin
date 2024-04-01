@@ -79,6 +79,7 @@ points_in_side(_points_in_side), eq_rad(_eq_rad), hntr(_hntr)
 // ---------------------------------------------------------
 GridSpec_LonLat make_grid_spec(HntrSpec const &hntr, bool pole_caps, int points_in_side, double eq_rad)
 {
+    printf("BEGIN make_grid_spec\n");
     if (hntr.im % 2 != 0) (*icebin_error)(-1,
         "IM must be even");
 
@@ -105,13 +106,18 @@ GridSpec_LonLat make_grid_spec(HntrSpec const &hntr, bool pole_caps, int points_
         latb.push_back(-lat);
     }
     if (!pole_caps) {
+	printf("No polecaps\n");
         double lat = hntr.jm/2 * dlat_d;
         if (std::abs(lat-90.) < 1.e-10) lat = 90.;
         latb.push_back(lat);
         latb.push_back(-lat);
+    } else { 
+	    printf("Polecaps\n");
     }
 
     std::sort(latb.begin(), latb.end());
+    printf("latb %g %g\n",latb[0],latb[latb.size()-1]);
+    printf("latb.size %i\n",latb.size());
 
     GridSpec_LonLat spec(
         std::move(lonb), std::move(latb),
@@ -119,6 +125,7 @@ GridSpec_LonLat make_grid_spec(HntrSpec const &hntr, bool pole_caps, int points_
         pole_caps, pole_caps,
         points_in_side,
         eq_rad, hntr);
+    printf("END make_grid_spec\n");
     return spec;
 }
 // -----------------------------------------------------

@@ -101,6 +101,7 @@ int main(int argc, char **argv)
 
     printf("--------------- Overlapping\n");
     Grid exgrid(make_exchange_grid(&gridA, &gridI));
+    printf("Next sort renumber vertices\n");
     sort_renumber_vertices(exgrid);
 
     printf("--------------- Writing out\n");

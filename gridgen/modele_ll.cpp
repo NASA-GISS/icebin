@@ -109,7 +109,10 @@ int main(int argc, char **argv)
 
     // -------------------------------------------------------------
     bool const pole_caps = vm["pole-caps"].as<bool>();
-    bool const points_in_side = (hntr_spec->im > IM1 ? 1 : 2);    // Use 2 for comparison with past experiments
+    int const points_in_side = (hntr_spec->im > IM1 ? 1 : 2);    // Use 2 for comparison with past experiments
+    printf("hntr_spec->im %i\n",hntr_spec->im);
+    printf("IM1 %i\n",IM1);
+    printf("points in side = %i\n",points_in_side);
     GridSpec_LonLat spec(make_grid_spec(
         *hntr_spec, pole_caps, points_in_side, modele::EQ_RAD));
 

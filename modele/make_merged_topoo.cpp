@@ -164,19 +164,17 @@ int main(int argc, char **argv)
     // Indexing &indexingHCO(metaO.indexingHC);
     // Indexing indexingHCA({"A", "HC"}, {0,0}, {hspecA.size(), indexingHCO[1].extent}, {1,0});
 
-    printf("A\n");
     // Read TOPOO input (global ice)
     ibmisc::ArrayBundle<double,2> topoo(topoo_bundle(BundleOType::MERGEO));
     blitz::Array<double,2> zsgloO;
         std::string zsgloO_units, zsgloO_sources;
+    printf("reading topo_ng %s\n",(args.topoo_ng_fname).c_str());
     {NcIO topoo_nc(args.topoo_ng_fname, 'r');
-    printf("B\n");
  
         // Read from topoO file, and allocate resulting arrays.
         topoo.ncio_alloc(topoo_nc, {}, "", "double",
             get_or_add_dims(topoo_nc, {"jm", "im"}, {hspecO.jm, hspecO.im}));
 
-     printf("C\n");
         auto ncvar(ncio_blitz_alloc(topoo_nc, zsgloO, "ZSGLO", "double"));
             get_att(ncvar, "units").getValues(zsgloO_units);
             get_att(ncvar, "sources").getValues(zsgloO_sources);
@@ -194,33 +192,44 @@ int main(int argc, char **argv)
     auto &zland_minO(topoo.array("ZLAND_MIN"));
     auto &zland_maxO(topoo.array("ZLAND_MAX"));
 
-    printf("D\n");
+    printf("dims %i %i \n",hspecO.jm, hspecO.im);
+
+    //printf("foceanOp(0,0) = %g\n",foceanOp(0,0));
+    //printf("fgrndOm(0,0) = %g\n",fgrndOm(0,0));
+    
+    //printf("topoo.FOCEAN(165,111)=%g\n",topoo.array("FOCEAN")(165,111));
+    //printf("foceanOp(165,111) = %g\n",foceanOp(165,111));
+    //printf("foceanOm(165,111) = %g\n",foceanOm(165,111));
+    //printf("zatmoOm(165,111) = %g\n",zatmoOm(165,111));
+    //printf("fgrndOm(165,111) = %g\n",fgrndOm(165,111));
+    
     // This is created in the merge.
     blitz::Array<int16_t,2> mergemaskO(hspecO.jm,hspecO.im);
-    printf("mergemask dims %i %i \n",hspecO.jm,hspecO.im);
 
-    printf("E\n");
     // Read the GCMRegridder
     GCMRegridder_Standard gcmO;
-    printf("gcm0 regridder %s\n",args.gcmO_fname);
     {NcIO gcmO_nc(args.gcmO_fname, 'r');
         gcmO.ncio(gcmO_nc, "m");
     }
 
-    printf("F\n");
     // Read per-ice sheet elevmasks (for land+ice and ice only)
     std::vector<blitz::Array<double,1>> emI_lands, emI_ices;
     for (auto const &xfname : args.elevmask_xfnames) {
         blitz::Array<double,1> emI_land, emI_ice;
         read_elevmask(xfname, emI_land, emI_ice);
-
         // Store results
         emI_lands.push_back(emI_land);
         emI_ices.push_back(emI_ice);
     }
 
-    printf("G\n");
     std::vector<std::string> errors;
+    //printf("foceanOp(0,0) = %g\n",foceanOp(0,0));
+    //printf("foceanOp(165,111) = %g\n",foceanOp(165,111));
+    //printf("foceanOm(165,111) = %g\n",foceanOm(165,111));
+    //printf("zatmoOm(165,111) = %g\n",zatmoOm(165,111));
+
+
+
 
     // We need correctA=true here to get FOCEANF, etc.
     merge_topoO(
@@ -231,7 +240,6 @@ int main(int argc, char **argv)
         RegridParams(false, true, {0.,0.,0.}),  // (scale, correctA, sigma)
         emI_lands, emI_ices, args.eq_rad, errors);
 
-    printf("H\n");
     // Compute ZOCEAN by truncating 
     // This never changes in a model run (since the ocean is fixed)
     // Therefore, it doesn't need to be part of merge_topoO()
@@ -241,7 +249,6 @@ int main(int argc, char **argv)
         zoceanOm(j,i) = foceanOm(j,i) == 1. ? std::max(0.,-zsgloO(j,i)) : 0.;
     }}
 
-    printf("I\n");
 
     SparseSetT dimAOp;
     EOpvAOpResult eam(compute_EOpvAOp_merged(
@@ -260,6 +267,7 @@ int main(int argc, char **argv)
     ZArray<int,double,2> EOpvAOp_c({eam.dimEOp.sparse_extent(), dimAOp.sparse_extent()});
     std::vector<double> lonc(metaO.hspecA.lonc());
     std::vector<double> latc(metaO.hspecA.latc());
+    printf("Now write to %s\n",args.topoo_merged_fname);
     {NcIO ncio(args.topoo_merged_fname, 'w');
 
         // Write Ocean grid metadata

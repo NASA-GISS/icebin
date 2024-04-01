@@ -100,6 +100,7 @@ struct OGrid {
 
 OGrid::OGrid(Grid const *_grid, Proj2 const *proj) : grid(_grid)
 {
+    printf("OGRID\n");
 
     // Compute bounding box too
     // Be lazy, base bounding box on minimum and maximum values in points
@@ -123,6 +124,7 @@ OGrid::OGrid(Grid const *_grid, Proj2 const *proj) : grid(_grid)
             maxy = std::max(maxy, vertex->y());
         }
     }
+    printf("bounding box ex %g %g %g %g\n",minx,maxx,miny,maxy);
 
     // Store it away
     bounding_box.push_back(gc::Point_2(minx, miny));
@@ -136,6 +138,7 @@ void OGrid::realize_rtree() {
 
     double min[2];
     double max[2];
+    printf("realize r tree ocells end = %i \n",ocells.end());
     for (auto ii1=ocells.begin(); ii1 != ocells.end(); ++ii1) {
         OCell &ocell(ii1->second);
 
@@ -160,6 +163,7 @@ void OGrid::realize_rtree() {
         //printf("(%g,%g) -> (%g,%g)\n", min[0], min[1], max[0], max[1]);
         rtree->Insert(min, max, &ocell);
     }
+    printf("Ex bounding box %f %f %f %f \n", min[0], min[1], max[0], max[1]);
 }
 
 
@@ -201,7 +205,6 @@ static bool overlap_callback(VertexCache *exvcache, GridMap<Cell> *cells, long g
 
     // Add it to the grid
     cells->add(std::move(excell));
-
     return true;
 }
 // --------------------------------------------------------------------
@@ -211,22 +214,28 @@ Grid make_exchange_grid(
     Grid const *gridA, Grid const *gridI,
     std::string sproj)
 {
+    printf("Now begin make_exchange_grid\n");
     // Determine compatibility and projections between the two grids
     std::unique_ptr<Proj2> projA, projI;
     if (gridA->coordinates == GridCoordinates::XY) {
+	    printf("gridA XY \n");
         if (gridI->coordinates == GridCoordinates::XY) {
+		printf("gridI XY\n");
             // No projections needed
             if (gridA->sproj != gridI->sproj) {
                 (*icebin_error)(-1, "Two XY grids must have the same projection\n");
+                printf("Two XY grids must have the same projection\n");
             }
             if (sproj == "") sproj = std::string(gridA->sproj.c_str());
         } else {
+	    printf("gridI not XY\n");
             // gridA=xy, gridI=ll: Project from grid 2 to gridA's xy
             projI.reset(new Proj2(gridA->sproj, Proj2::Direction::LL2XY));
             if (sproj == "") sproj = std::string(gridA->sproj.c_str());
         }
     } else {
         if (gridI->coordinates == GridCoordinates::XY) {
+	    printf("gridI is XY\n");
             // gridA=ll, gridI=xy: Project from grid 1 to gridI's xy
             projA.reset(new Proj2(gridI->sproj, Proj2::Direction::LL2XY));
             if (sproj == "") sproj = std::string(gridI->sproj.c_str());
@@ -234,9 +243,17 @@ Grid make_exchange_grid(
             // Both in Lat/Lon: Project them both to XY for overlap computation
             // BUT... since we don't have a projection, we must throw
             // up our hands!
+            printf("Program isn't currently equipped to overlap two grids on the sphere.\n");
             (*icebin_error)(-1, "Program isn't currently equipped to overlap two grids on the sphere.\n");
         }
     }
+
+    printf("sproj = %s\n",sproj.c_str());
+
+    // temporaray!!!
+    //sproj = "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84";
+    //printf("sproj = %s\n",sproj.c_str());
+
 
     /** Initialize the new grid */
     GridMap<Vertex> vertices(-1);    // Not specified
@@ -252,11 +269,11 @@ Grid make_exchange_grid(
     auto callback(std::bind(&overlap_callback, &exvcache, &cells,
         gridI->ndata(), &ocell1, _1));
 
+    printf("NOW BEGIN LOOP \n");
     int nprocessed=0;
     for (auto ii1 = ogridA.ocells.begin(); ii1 != ogridA.ocells.end(); ++ii1) {
+	//if (nprocessed<5000){
         ocell1 = &ii1->second;      // Set parameter for the callback
-
-//printf("gridA[%d]: x in (%f - %f), y in (%f - %f)\n", ocell1->cell->index, min[0], max[0], min[1], max[1]);
         int nfound = ogridI.rtree->Search(
             {CGAL::to_double(ocell1->bounding_box.xmin()),
              CGAL::to_double(ocell1->bounding_box.ymin())},
@@ -266,12 +283,12 @@ Grid make_exchange_grid(
 
         // Logging
         ++nprocessed;
-        if (nprocessed % 100 == 0) {
-            printf("Processed %d of %d from gridA, total overlaps = %d\n",
-                nprocessed+1, ogridA.ocells.size(), cells.nrealized());
-        }
-    }
-
+        //if (nprocessed % 100 == 0) {
+        //    printf("Processed %d of %d from gridA, total overlaps = %d\n",
+        //        nprocessed+1, ogridA.ocells.size(), cells.nrealized());
+        //}
+    }//}
+    printf("next return GRID\n");
     return Grid(
         gridA->name + '-' + gridI->name,
         std::unique_ptr<GridSpec>(new GridSpec_Generic(cells.nfull())),
@@ -280,7 +297,7 @@ Grid make_exchange_grid(
         GridParameterization::L0,    // Why not?
         Indexing({"i0"}, {0}, {(long)cells.nfull()}, {0}),    // No n-D indexing available.
         std::move(vertices), std::move(cells));
-
+    printf("END function\n");
 }
 
 

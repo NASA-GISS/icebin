@@ -44,20 +44,27 @@ blitz::Array<double,1> const &elevmaskI)
     size_t const nI = gcmO->nI(sheet_index);
     size_t const nO = gcmO->nA();
 
+
     // Obtain the OvI matrix
     SparseSetT dimI(id_sparse_set<SparseSetT>(nI));    // dimI is same dense and sparse
+    
+    int mycount = 0;
+    double mysum = 0;
+    for (size_t iI_d=0; iI_d < dimI.dense_extent(); ++iI_d) {
+	auto iI_s = dimI.to_sparse(iI_d);
+        if (elevmaskI(iI_d) > 0) {
+		mycount = mycount + 1;
+		mysum = mysum + elevmaskI(iI_d);
+    	//printf("%i %i %g\n",iI_d,iI_s,elevmaskI(iI_d));
+    }}
+    printf("mycount and sum %i %g\n",mycount,mysum);
+
+    printf("dimI dense extent %i\n",dimI.dense_extent());
     std::unique_ptr<RegridMatrices_Dynamic> rmO(
         gcmO->regrid_matrices(sheet_index, elevmaskI, paramsO));
     ret.OvI = rmO->matrix_d("AvI", {&ret.dimO, &dimI}, paramsO);
-
-
-//    // Construct elevI in dense indexing space
-//    // TODO: This isn't needed because dimI is never densified
-//    blitz::Array<double,1> elevI(dimI.dense_extent());
-//    for (size_t iI_d=0; iI_d < dimI.dense_extent(); ++iI_d) {
-//        auto iI_s = dimI.to_sparse(iI_d);
-//        elevI(iI_d) = elevmaskI(iI_s); //emI.elev(iI_s);
-//    }
+    printf("dimO dense extent %i\n",ret.dimO.dense_extent());
+    printf("OvI dims %i %i\n",*(*ret.OvI).dims[0], *(*ret.OvI).dims[1]);
 
     // Dense and sparse are the same for Ice Grid
 
@@ -113,16 +120,10 @@ printf("BEGIN merge_topoO\n");
 // Log inputs for debugging
 {
     auto &indexing(gcmO->ice_regridders()[0]->agridI.indexing);
-    printf("indexing extent %i %i \n",indexing[1].extent, indexing[0].extent);
     blitz::TinyVector<int,2> shapeI(indexing[1].extent, indexing[0].extent);
-    printf("shapeI = %i\n",shapeI);
-    printf("emI_lands[0] %i\n",emI_lands[0]);
-    printf("emI_ices[0] %i\n",emI_ices[0]);
-    printf("emI_ices r c %i %i\n",emI_ices.size());
  
 
     auto emI_land2(unconst(reshape<double,1,2>(emI_lands[0], shapeI)));
-    printf("X\n");
     auto emI_ice2(unconst(reshape<double,1,2>(emI_ices[0], shapeI)));
 
 
@@ -197,41 +198,52 @@ printf("BEGIN merge_topoO\n");
         paramsO_correctA.scale = false;
         paramsO_correctA.correctA = true;
 
+   printf("Next loop over sheets \n");
+
     // -------------- Compute additional area of land and ice due to local ice sheets
     for (size_t sheet_index=0; sheet_index < gcmO->ice_regridders().index.size(); ++sheet_index) {
 
+	printf("Inside loop, sheetIndex=%i\n",sheet_index);
         // Update from ice-only coverage
         {GetSheetElevO sheet(get_sheet_elevO(
             gcmO, paramsO_rawA, sheet_index, emI_ices[sheet_index]));
-
-            for (size_t iO_d=0; iO_d < sheet.dimO.dense_extent(); ++iO_d) {
+	    printf("Z dimO.dense_extent %i\n",sheet.dimO.dense_extent());
+  	    printf("Z dimO.sparse_extent %i\n",sheet.dimO.sparse_extent());
+                  for (size_t iO_d=0; iO_d < sheet.dimO.dense_extent(); ++iO_d) {
+		//printf("iO_d=%i\n",iO_d);
                 auto const iO_s = sheet.dimO.to_sparse(iO_d);
                 double const native_area = gcmO->agridA->native_area(
                     gcmO->agridA->dim.to_dense(iO_s));
                 double const elev = sheet.elev_areaO(iO_d);
                 da_zicetopO(iO_s) += elev * native_area;
                 mergemaskOm(iO_s) = 1;
+		//printf("%i %i da_zicetop = %g %g %g\n",iO_d, iO_s,da_zicetopO(iO_s),elev,native_area);
             }
         }
 
         {GetSheetElevO sheet(get_sheet_elevO(
             gcmO, paramsO_correctA, sheet_index, emI_ices[sheet_index]));
+	    printf("A sheet dense extent %i\n",sheet.dimO.dense_extent());
+
 
             for (size_t iO_d=0; iO_d < sheet.dimO.dense_extent(); ++iO_d) {
                 auto const iO_s = sheet.dimO.to_sparse(iO_d);
                 da_giceO(iO_s) += sheet.OvI->wM(iO_d);
             }
         }
-
         // Update from ice+land coverage
         {auto &elevI(emI_lands[sheet_index]);
         GetSheetElevO sheet(get_sheet_elevO(
             gcmO, paramsO_rawA, sheet_index, elevI));
+		//printf("B sheet dense extent %i\n",sheet.dimO.dense_extent());
+
 
             // ...update ZATMO
             for (size_t iO_d=0; iO_d < sheet.dimO.dense_extent(); ++iO_d) {
                 double const elev = sheet.elev_areaO(iO_d);
                 auto iO_s = sheet.dimO.to_sparse(iO_d);
+		// elev is NaN for Antarctica
+		//printf("%i %i elev = %g\n",iO_d,iO_s,elev);
                 da_zatmoO(iO_s) += sheet.elev_areaO(iO_d) * gcmO->agridA->native_area(gcmO->agridA->dim.to_dense(iO_s)); //sheet.OvI->wM(iO_d);
             }
 
@@ -271,6 +283,7 @@ printf("BEGIN merge_topoO\n");
         double const diff_fgiceOp = da_giceO(iO) * by_areaO;
         if (diff_fgiceOp != 0) mergemaskOm(iO) = 1;
         fgiceOp(iO) = fgiceOp(iO) + diff_fgiceOp;
+	//printf("update focean(%i)=%g by subtracting %g\n",iO,foceanOp(iO),da_contO(iO)*by_areaO);
         foceanOp(iO) = foceanOp(iO) - da_contO(iO)*by_areaO;
         zatmoOp(iO) += da_zatmoO(iO) * by_areaO;
 
@@ -333,6 +346,14 @@ printf("BEGIN merge_topoO\n");
     sanity_nonan("zatmoOm2", zatmoOm2, errors);
     sanity_nonan("zicetopO2", zicetopO2, errors);
     sanity_check_land_fractions(foceanOm2, flakeOm2, fgrndOm2, fgiceOm2, errors);
+
+    // now Greenland is added back, focean =0
+    printf("foceanOp2(0,0) = %g\n",foceanOp2(0,0));
+    printf("foceanOp2(165,111) = %g\n",foceanOp2(165,111));
+    printf("foceanOm2(165,111) = %g\n",foceanOm2(165,111));
+    printf("zatmoOm2(165,111) = %g\n",zatmoOm2(165,111));
+    printf("fgrndOm2(0,0) = %g\n",fgrndOm2(0,0));
+    printf("fgrndOm2(165,111) = %g\n",fgrndOm2(165,111));
 
     // Convert unset zland_min and zland_max to NaN
     for (int iO=0; iO<nO; ++iO) {

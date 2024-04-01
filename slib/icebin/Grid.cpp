@@ -187,7 +187,7 @@ blitz::TinyVector<int,RANK> blitz_extents(NcVar &ncv)
 // ------------------------------------------------------------
 void Grid::nc_write(netCDF::NcGroup *nc, std::string const &vname) const
 {
-printf("BEGIN Grid::nc_write()\n");
+//printf("BEGIN Grid::nc_write()\n");
     // ---------- Write out the vertices
     {
         std::vector<size_t> startp = {0,0};
@@ -271,7 +271,7 @@ printf("BEGIN Grid::nc_write()\n");
         cells_vertex_refs_start_v.putVar(startp, countp, cells_vertex_refs_start.data());
 
     }
-printf("END Grid::nc_write()\n");
+//printf("END Grid::nc_write()\n");
 }
 
 /** @param fname Name of file to load from (eg, an overlap matrix file)

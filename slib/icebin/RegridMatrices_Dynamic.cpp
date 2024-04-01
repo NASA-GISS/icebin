@@ -59,17 +59,25 @@ static std::unique_ptr<linear::Weighted_Eigen> compute_AEvI(
     // function are actually X (exchdnage grid).
     // (and dimG, etc. is an unused variable)
 
-printf("BEGIN compute_AEvI scale=%d correctA=%d\n", params.scale, params.correctA);
+//printf("BEGIN compute_AEvI scale=%d correctA=%d\n", params.scale, params.correctA);
     std::unique_ptr<linear::Weighted_Eigen> ret(new linear::Weighted_Eigen(dims, true));
     SparseSetT * const dimA(ret->dims[0]);
     SparseSetT * const dimI(ret->dims[1]);
     SparseSetT _dimG;
     SparseSetT * const dimG(&_dimG);
-
     if (dimA) dimA->set_sparse_extent(AE.nfull);
     if (dimI) dimI->set_sparse_extent(
         Igrid=='I' ? regridder->nI() : regridder->nX());
     dimG->set_sparse_extent(regridder->nX());
+    //printf("dimA.sparse_extent %i\n",(*dimA).sparse_extent());
+    //printf("dimI.sparse_extent %i\n",(*dimI).sparse_extent());
+    //printf("dimG.sparse_extent %i\n",(*dimG).sparse_extent());
+    //printf("dimA.dense_extent %i\n",(*dimA).dense_extent());
+    //printf("dimI.dense_extent %i\n",(*dimI).dense_extent());
+    printf("dimG.dense_extent %i\n",(*dimG).dense_extent());
+    printf("AE %g\n",AE.nfull);
+    printf("%s\n", (AE.name).c_str());
+    printf("%s\n",(AE.dim_name).c_str());
 
     // ----- Get the Ur matrices (which determines our dense dimensions)
     std::unique_ptr<EigenSparseMatrixT> ApvG(new EigenSparseMatrixT(
@@ -89,14 +97,45 @@ printf("BEGIN compute_AEvI scale=%d correctA=%d\n", params.scale, params.correct
             {SparsifyTransform::ADD_DENSE},
             {dimG, dimI}, '.').to_eigen());
         auto sGvI(sum(GvI, 0, '-'));
+	printf("ApvG.rows %i\n",(*ApvG).rows());
+	printf("ApvG.cols %i\n",(*ApvG).cols());
+	printf("map(sGvI).rows %i \n",(map_eigen_diagonal(sGvI)).rows());
+        printf("map(sGvI).cols %i \n",(map_eigen_diagonal(sGvI)).cols());
+ 	printf("GvI.rows() %i\n",GvI.rows());
+	printf("GvI.cols() %i\n",GvI.cols());
+        printf("map(sGvI).rows %i \n",(map_eigen_diagonal(sGvI)*GvI).rows());
+        printf("map(sGvI).cols %i \n",(map_eigen_diagonal(sGvI)*GvI).cols());
 
-        ApvI.reset(new EigenSparseMatrixT(
-            *ApvG * map_eigen_diagonal(sGvI) * GvI));
+
+
+
+//        if ((*ApvG).cols() != sGvI.rows()) {
+//		printf("RESIZING \n");
+//
+//		EigenSparseMatrixT ApvG_resized((*ApvG));
+//                ApvG_resized.resize((*ApvG).rows(),sGvI.rows());
+//
+//		EigenSparseMatrixT GvI_resized((GvI));
+//                GvI_resized.resize((*ApvG).cols(),GvI.cols());
+//                auto sGvI_resized(sum(GvI_resized, 0, '-'));
+//	
+//		//printf("ApvG_resized.rows %i\n",ApvG_resized.rows());
+//		//printf("ApvG_resized.cols %i\n",ApvG_resized.cols());
+//		printf("GvI_resized.rows %i\n",GvI_resized.rows());
+//		printf("GvI_resized.cols %i\n",GvI_resized.cols());
+//	
+//        	ApvI.reset(new EigenSparseMatrixT(
+//            (*ApvG) * map_eigen_diagonal(sGvI_resized) * GvI_resized));
+//        } else {
+//		printf("No need to resize \n");
+        	ApvI.reset(new EigenSparseMatrixT(
+            (*ApvG) * map_eigen_diagonal(sGvI) * GvI)); 
+//	}
         ApvG.release();
     } else {
         ApvI = std::move(ApvG);
     }
-
+ 
     ret->Mw.reference(sum(*ApvI, 1, '+'));    // Area of I cells
 
     // ----- Apply final scaling, and convert back to sparse dimension
@@ -127,9 +166,9 @@ printf("BEGIN compute_AEvI scale=%d correctA=%d\n", params.scale, params.correct
             // Note that sAvAp * sApvI = [size (weight) of grid cells in A]
             ret->M = std::move(ApvI);
         }
-
+ 
     } else {
-
+ 
         // ----- Compute the final weight matrix
         // ~correctA: Weight matrix in Ap space
         auto wApvI_b(sum(*ApvI, 0, '+'));
@@ -146,7 +185,7 @@ printf("BEGIN compute_AEvI scale=%d correctA=%d\n", params.scale, params.correct
         }
     }
 
-printf("END compute_AEvI\n");
+//printf("END compute_AEvI\n");
     return ret;
 }
 // ---------------------------------------------------------
@@ -246,7 +285,7 @@ std::unique_ptr<linear::Weighted_Eigen> compute_IvAE(
         // Smooth the underlying unsmoothed regridding transformation
         ret->M.reset(new EigenSparseMatrixT(smoothI * *ret->M));
     }
-    printf("END compute_IvAE\n");
+    //printf("END compute_IvAE\n");
 
     return ret;
 }
